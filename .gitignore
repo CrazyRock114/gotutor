@@ -1,0 +1,13 @@
+backend/.venv/
+backend/models/
+backend/demo/__pycache__/
+backend/analysis_logs/
+frontend/node_modules/
+frontend/dist/
+gtp_logs/
+analysis_logs/
+__pycache__/
+*.pyc
+.DS_Store
+.pytest_cache/
+.vercel/
