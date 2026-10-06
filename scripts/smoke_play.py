@@ -24,13 +24,18 @@ def get(path):
 
 
 def main():
+    color = sys.argv[1] if len(sys.argv) > 1 else "black"
     t0 = time.time()
-    s = post("/api/play", {"size": 9, "rank": "rank_15k", "color": "black"})
+    s = post("/api/play", {"size": 9, "rank": "rank_15k", "color": color})
     if "__error" in s:
         print("FAIL create:", s)
         sys.exit(1)
     pid = s["playId"]
-    print(f"对局创建 pid={pid} 引擎首手加载耗时 {time.time()-t0:.1f}s,引擎首手={s.get('reply')}")
+    print(f"对局创建 pid={pid} color={color} moves={len(s['moves'])} toMove={s['toMove']}")
+    if color == "white":
+        assert len(s["moves"]) == 1 and s["moves"][0]["color"] == "B", "P0-1: AI 黑首手缺失"
+        assert s["toMove"] == "W"
+    print(f"引擎首手加载耗时 {time.time()-t0:.1f}s,AI 首手={s['moves'][0]['move'] if s['moves'] else None}")
 
     # 黑连下 6 手(简单角部/边上序列)
     seq = ["C7", "E5", "G7", "G5", "C4", "F5"]

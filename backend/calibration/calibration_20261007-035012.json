@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-10-07 03:49:27",
+  "size": 9,
+  "seed_base": 2026,
+  "max_moves": 250,
+  "games_per_rank": 1,
+  "method": "humanPolicy sampling self-play",
+  "ranks": {
+    "rank_20k": {
+      "games": 1,
+      "black_wins": 1,
+      "white_wins": 0,
+      "total_moves": 250,
+      "games_with_early_pass": 0,
+      "pass_moves_total": 0,
+      "human_policy_moves": 0,
+      "engine_errors": 0,
+      "avg_moves": 250.0,
+      "black_win_rate": 1.0,
+      "pass_anomaly_rate": 0.0
+    },
+    "rank_15k": {
+      "games": 1,
+      "black_wins": 0,
+      "white_wins": 1,
+      "total_moves": 250,
+      "games_with_early_pass": 0,
+      "pass_moves_total": 0,
+      "human_policy_moves": 0,
+      "engine_errors": 0,
+      "avg_moves": 250.0,
+      "black_win_rate": 0.0,
+      "pass_anomaly_rate": 0.0
+    },
+    "rank_10k": {
+      "games": 1,
+      "black_wins": 0,
+      "white_wins": 1,
+      "total_moves": 250,
+      "games_with_early_pass": 0,
+      "pass_moves_total": 0,
+      "human_policy_moves": 0,
+      "engine_errors": 0,
+      "avg_moves": 250.0,
+      "black_win_rate": 0.0,
+      "pass_anomaly_rate": 0.0
+    },
+    "rank_5k": {
+      "games": 1,
+      "black_wins": 1,
+      "white_wins": 0,
+      "total_moves": 250,
+      "games_with_early_pass": 0,
+      "pass_moves_total": 0,
+      "human_policy_moves": 0,
+      "engine_errors": 0,
+      "avg_moves": 250.0,
+      "black_win_rate": 1.0,
+      "pass_anomaly_rate": 0.0
+    },
+    "rank_1k": {
+      "games": 1,
+      "black_wins": 0,
+      "white_wins": 1,
+      "total_moves": 250,
+      "games_with_early_pass": 0,
+      "pass_moves_total": 0,
+      "human_policy_moves": 0,
+      "engine_errors": 0,
+      "avg_moves": 250.0,
+      "black_win_rate": 0.0,
+      "pass_anomaly_rate": 0.0
+    },
+    "rank_1d": {
+      "games": 1,
+      "black_wins": 1,
+      "white_wins": 0,
+      "total_moves": 250,
+      "games_with_early_pass": 0,
+      "pass_moves_total": 0,
+      "human_policy_moves": 0,
+      "engine_errors": 0,
+      "avg_moves": 250.0,
+      "black_win_rate": 1.0,
+      "pass_anomaly_rate": 0.0
+    }
+  }
+}
