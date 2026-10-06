@@ -25,6 +25,15 @@ def call(method, path, payload=None):
             return e.code, {}
 
 
+def _first_empty(board, size):
+    letters = "ABCDEFGHJKLMNOPQRSTUVWXYZ"
+    for y in range(size):
+        for x in range(size):
+            if board[y][x] == 0:
+                return f"{letters[x]}{size - y}"
+    return "pass"
+
+
 def check(name, cond, extra=""):
     global passed, failed
     if cond:
@@ -65,6 +74,19 @@ st, r = call("POST", "/api/games", {"sgf": "(;GM[1]FF[4]SZ[9]KM[5.5];B[ee];W[gg]
 check("合法创建 → 200", st == 200, f"got {st}")
 gid = r.get("gameId")
 
+print("== P0-1 白棋开局状态机回归 ==")
+st, r = call("POST", "/api/play", {"size": 9, "rank": "rank_15k", "color": "white"})
+check("White 建局 → 200", st == 200, f"got {st}")
+check("AI 黑已走第一手:moves.length === 1", len(r.get("moves", [])) == 1, f"got {len(r.get('moves', []))}")
+check("moves[0].color === 'B'", r.get("moves", [{}])[0].get("color") == "B", f"got {r.get('moves')}")
+check("toMove === 'W'", r.get("toMove") == "W", f"got {r.get('toMove')}")
+pid_w_open = r.get("playId")
+# 找一个空点下白棋(避开 AI 首手)
+st, r = call("POST", f"/api/play/{pid_w_open}/move", {"vertex": _first_empty(r.get("board"), 9)})
+check("白应手成功", st == 200, f"got {st} {r}")
+check("白应手后 AI 黑回应:moves.length === 3", st == 200 and len(r.get("moves", [])) == 3, f"got {st} len={len(r.get('moves', []))}")
+check("moves[2].color === 'B'", r.get("moves", [{}]*3)[2].get("color") == "B", f"got {r.get('moves')}")
+
 print("== 对弈 API 边界 ==")
 st, r = call("POST", "/api/play", {"size": 9, "rank": "rank_99k", "color": "black"})
 check("非法段位 → 422", st == 422, f"got {st}")
@@ -104,7 +126,8 @@ st, r = call("POST", "/api/play", {"size": 9, "rank": "rank_15k", "color": "whit
 check("执白建局 → 200", st == 200, f"got {st}")
 pid_w = r.get("playId")
 
-st, r = call("POST", f"/api/play/{pid_w}/undo")
+st, r = call("POST", "/api/play", {"size": 9, "rank": "rank_15k", "color": "black"})
+st, r = call("POST", f"/api/play/{r.get('playId')}/undo")
 check("空手数悔棋 → 409", st == 409, f"got {st}")
 
 st, r = call("POST", f"/api/play/{pid_w}/resign")

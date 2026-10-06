@@ -65,8 +65,8 @@ class PlaySession:
 
     def __post_init__(self):
         self.board = boards.Board(self.size)
-        # 让 user 执黑时黑先;user 执白则引擎(黑)先走,由路由层处理
-        self.to_move = "b" if self.user_color == "b" else "w"
+        # 围棋黑先:无论用户执何色,首手都是黑(P0-1 修复:白方开局由 AI 黑自动走第一手)
+        self.to_move = "b"
 
     # ---------- 着法 ----------
     def apply(self, colour: str, gtp: str | None) -> None:
