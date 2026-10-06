@@ -37,14 +37,25 @@ def main():
         assert s["toMove"] == "W"
     print(f"引擎首手加载耗时 {time.time()-t0:.1f}s,AI 首手={s['moves'][0]['move'] if s['moves'] else None}")
 
-    # 黑连下 6 手(简单角部/边上序列)
-    seq = ["C7", "E5", "G7", "G5", "C4", "F5"]
-    for i, v in enumerate(seq):
+    # 动态找空点(humanPolicy 采样下 AI 着法不可预测,固定序列会撞子)
+    letters = "ABCDEFGHJKLMNOPQRSTUVWXYZ"
+
+    def first_empty(board):
+        for y in range(len(board)):
+            for x in range(len(board[y])):
+                if board[y][x] == 0:
+                    return f"{letters[x]}{len(board) - y}"
+        return "pass"
+
+    my = s["userColor"]
+    for i in range(6):
+        st = get(f"/api/play/{pid}")
+        v = first_empty(st["board"])
         r = post(f"/api/play/{pid}/move", {"vertex": v})
         if "__error" in r:
             print(f"FAIL move {i+1} {v}:", r)
             sys.exit(1)
-        print(f"  黑{v} → 白应 {r.get('reply')} | 手数 {len(r['moves'])} 提子 {r['captures']}")
+        print(f"  {my}{v} → AI 应 {r.get('reply')} | 手数 {len(r['moves'])} 提子 {r['captures']}")
         if r["status"] != "playing":
             print("对局提前结束:", r.get("result"))
             break
