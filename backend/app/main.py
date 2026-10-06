@@ -16,7 +16,8 @@ from pydantic import BaseModel, Field
 
 from .analysis import build_summary
 from .engine import EngineError, EngineNotConfigured, KataGoEngine
-from .play import RANK_LABELS, RANK_PROFILES, PlayStore, engine_reply, gtp_to_xy
+from .rules import default_komi
+from .play import RANK_LABELS, RANK_PROFILES, PlayStore, ai_move, gtp_to_xy
 from .runner import run_game_analysis
 from .sgf import parse_sgf
 from .store import GameStore
@@ -27,6 +28,7 @@ KATAGO_MODEL = os.environ.get(
     "KATAGO_MODEL", str(BACKEND_DIR / "models" / "kata1-b18c384nbt.bin.gz")
 )
 KATAGO_CFG = os.environ.get("KATAGO_CFG", str(BACKEND_DIR / "analysis.cfg"))
+KATAGO_PLAY_CFG = os.environ.get("KATAGO_PLAY_CFG", str(BACKEND_DIR / "play.cfg"))
 MAX_MOVES = 600
 DEMO_SGF = BACKEND_DIR / "demo" / "game.sgf"
 
@@ -47,13 +49,18 @@ async def _ensure_play_engine() -> KataGoEngine:
     if play_engine_state["ready"]:
         return play_engine_state["engine"]
     if play_engine_state["starting"] is None:
-        engine = KataGoEngine(KATAGO_BIN, HUMAN_MODEL, KATAGO_CFG)
+        engine = KataGoEngine(KATAGO_BIN, HUMAN_MODEL, KATAGO_PLAY_CFG)
         play_engine_state["engine"] = engine
 
         async def _start():
-            await engine.start()
-            await engine.wait_ready(600)
-            play_engine_state["ready"] = True
+            try:
+                await engine.start()
+                await engine.wait_ready(600)
+                play_engine_state["ready"] = True
+            except Exception as e:
+                # P0-4:启动失败必须复位,否则永远卡在失败状态无法重试
+                play_engine_state.update({"engine": None, "ready": False, "starting": None})
+                raise
 
         play_engine_state["starting"] = asyncio.create_task(_start())
     task = play_engine_state["starting"]
@@ -83,6 +90,9 @@ async def lifespan(_app: FastAPI):
     task.cancel()
     if engine_state["engine"]:
         await engine_state["engine"].stop()
+    pe = play_engine_state.get("engine")
+    if pe and pe.running:
+        await pe.stop()
 
 
 app = FastAPI(title="Gotutor API", lifespan=lifespan)
@@ -210,6 +220,8 @@ class PlayCreateRequest(BaseModel):
     size: int = Field(default=9, ge=2, le=19)
     rank: str = "rank_15k"
     color: str = Field(default="black", pattern="^(black|white)$")
+    autoReply: bool = True   # False = 手动双色模式(规则回归/摆谱)
+    seed: int | None = None  # humanPolicy 采样种子(可复现)
 
 
 class PlayMoveRequest(BaseModel):
@@ -235,16 +247,16 @@ async def play_create(req: PlayCreateRequest):
     session = play_store.create(
         size=req.size, rank=req.rank,
         user_color="b" if req.color == "black" else "w",
-        komi=7.5,
+        komi=default_komi(req.size),
+        autoreply=req.autoReply,
+        seed=req.seed,
     )
     reply = None
-    if session.to_move != session.user_color:  # 用户执白 → 引擎执黑先走
+    if req.autoReply and session.to_move != session.user_color:  # 用户执白 → AI 黑先走(P0-1)
         try:
-            vertex = await engine_reply(engine, session)
+            vertex = await ai_move(engine, session)
         except EngineError as e:
             raise HTTPException(status_code=500, detail=f"引擎错误:{e}") from e
-        session.apply("b", None if vertex.lower() == "pass" else vertex)
-        session.to_move = session.user_color
         session.last_engine_move = vertex
         reply = vertex
     state = session.state()
@@ -267,7 +279,7 @@ async def play_move(pid: str, req: PlayMoveRequest):
         raise HTTPException(status_code=404, detail="对局不存在")
     if s.status != "playing":
         raise HTTPException(status_code=409, detail="对局已结束")
-    if s.to_move != s.user_color:
+    if s.autoreply and s.to_move != s.user_color:
         raise HTTPException(status_code=409, detail="还没轮到你")
     engine = await _ensure_play_engine()
 
@@ -279,33 +291,30 @@ async def play_move(pid: str, req: PlayMoveRequest):
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e)) from None
 
-    # 先在本地棋盘应用用户着法(占用/越界直接拒绝)
+    mover = s.to_move  # autoreply=False 时允许行棋方直接落子(规则回归/摆谱)
     try:
-        s.apply(s.user_color, user_gtp)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="非法着点:这里已有棋子") from None
+        s.apply(mover, user_gtp)
+    except ValueError as e:
+        detail = str(e)
+        if "劫争" in detail:
+            raise HTTPException(status_code=422, detail="劫争:禁止立即回提") from e
+        if "自杀" in detail:
+            raise HTTPException(status_code=422, detail="自杀:落子后无气且提不掉对方") from e
+        raise HTTPException(status_code=422, detail="非法着点:这里已有棋子") from e
+    s.last_active = __import__("time").time()
     if s.passes >= 2:
         s.status = "over"
         s.result = "双方连续停着,对局结束(去复盘看胜负)"
         return s.state()
 
-    try:
-        reply_vertex = await engine_reply(engine, s)
-    except EngineError as e:
-        s.pop_move()  # 回滚用户着法
-        detail = str(e)
-        if "illegal" in detail.lower():
-            raise HTTPException(status_code=422, detail="非法着点:这里不能下(禁入点/已占用/劫争)") from e
-        raise HTTPException(status_code=500, detail=f"引擎错误:{detail}") from e
-
-    ai_color = "w" if s.user_color == "b" else "b"
-    ai_gtp = None if reply_vertex.lower() == "pass" else reply_vertex
-    try:
-        s.apply(ai_color, ai_gtp)
-    except ValueError:
-        pass  # 引擎着不应非法;万一发生则忽略
-    s.to_move = s.user_color
-    s.last_engine_move = reply_vertex
+    reply_vertex = None
+    if s.autoreply and s.to_move != s.user_color:  # AI 自动应手
+        try:
+            reply_vertex = await ai_move(engine, s)
+        except EngineError as e:
+            s.pop_move()  # 回滚用户着法
+            raise HTTPException(status_code=500, detail=f"引擎错误:{e}") from e
+        s.last_engine_move = reply_vertex
 
     if s.passes >= 2:
         s.status = "over"

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import logging
 import shutil
 from collections import deque
@@ -22,10 +23,14 @@ class EngineNotConfigured(RuntimeError):
 
 
 class KataGoEngine:
-    def __init__(self, binary: str, model: str, config: str):
+    def __init__(self, binary: str, model: str, config: str, readline_timeout: float | None = None):
         self.binary = binary
         self.model = model
         self.config = config
+        # query 级看门狗:单行输出超过该时长即视为引擎挂死(P0-4)
+        self.readline_timeout = readline_timeout or float(
+            os.environ.get("KATAGO_READLINE_TIMEOUT", "300")
+        )
         self._proc: asyncio.subprocess.Process | None = None
         self._ready = asyncio.Event()
         self._stderr_task: asyncio.Task | None = None
@@ -102,7 +107,19 @@ class KataGoEngine:
             completed = False
             try:
                 while True:
-                    line = await self._proc.stdout.readline()
+                    try:
+                        line = await asyncio.wait_for(
+                            self._proc.stdout.readline(), timeout=self.readline_timeout
+                        )
+                    except asyncio.TimeoutError:
+                        # P0-4:看门狗触发 → kill 进程,下次查询自动重启
+                        log.error("KataGo %.0fs 无输出,终止进程(查询 %s)", self.readline_timeout, qid)
+                        self._proc.kill()
+                        self._proc = None
+                        self._ready.clear()
+                        raise EngineError(
+                            f"引擎输出超时({self.readline_timeout:.0f}s),已终止并将在下次查询自动重启"
+                        ) from None
                     if not line:
                         raise EngineError("KataGo 进程意外退出")
                     if not line.strip():
