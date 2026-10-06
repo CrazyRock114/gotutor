@@ -25,7 +25,7 @@ interface Props {
 }
 
 const RANKS = [
-  { value: 'rank_20k', label: '20级(入门)' },
+  { value: 'rank_20k', label: 'profile 20k' },
   { value: 'rank_15k', label: '15级' },
   { value: 'rank_10k', label: '10级' },
   { value: 'rank_5k', label: '5级' },
@@ -146,7 +146,7 @@ export default function PlayPage({ onSubmitReview }: Props) {
         <div class="upload-card">
           <h1>与 AI 对弈</h1>
           <p class="upload-desc">
-            AI 使用 KataGo human-SL 模型模拟人类棋手下棋,棋力按段位校准。
+            AI 使用 KataGo human-SL 模型按 profile 采样人类棋风着法(20k~1d)。
             学完入门课程?来下一盘试试,下完一键 AI 复盘。
           </p>
           <div class="play-setup">
@@ -196,7 +196,7 @@ export default function PlayPage({ onSubmitReview }: Props) {
     <div class="play-view">
       <div class="play-head">
         <span class="game-title">
-          9/{state.boardSize} 路 · 对弈 {state.rankLabel} AI
+          {state.boardSize} 路 · 对弈 human-SL {state.rankLabel}
         </span>
         <span class={`badge ${yourTurn ? 'badge-your' : ''}`}>
           {state.status === 'over' ? '对局结束' : yourTurn ? '轮到你下' : 'AI 思考中…'}

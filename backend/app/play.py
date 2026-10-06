@@ -18,13 +18,14 @@ from .rules import GTP_LETTERS, default_komi, gtp_to_sgf_rowcol, gtp_to_vertex, 
 
 # human-SL 支持的段位档位(已文档化区间 rank_20k ~ rank_9d)
 RANK_PROFILES = ["rank_20k", "rank_15k", "rank_10k", "rank_5k", "rank_1k", "rank_1d"]
+# P0-2:在完成 benchmark 前,UI/文档统一称"profile",禁止使用"校准棋力"
 RANK_LABELS = {
-    "rank_20k": "20级",
-    "rank_15k": "15级",
-    "rank_10k": "10级",
-    "rank_5k": "5级",
-    "rank_1k": "1级",
-    "rank_1d": "初段",
+    "rank_20k": "profile 20k",
+    "rank_15k": "profile 15k",
+    "rank_10k": "profile 10k",
+    "rank_5k": "profile 5k",
+    "rank_1k": "profile 1k",
+    "rank_1d": "profile 1d",
 }
 
 
