@@ -5,13 +5,10 @@ from dataclasses import dataclass, field
 
 from sgfmill import sgf
 
-# GTP 列字母(跳过 I)
-GTP_LETTERS = "ABCDEFGHJKLMNOPQRSTUVWXYZ"
+# GTP 列字母(跳过 I)——P0-7:集中于 rules.py
+from .rules import GTP_LETTERS, vertex_to_gtp
 
-
-def vertex_to_gtp(row: int, col: int) -> str:
-    """sgfmill 坐标(row 0 = 底行)→ GTP 顶点(如 Q16)。"""
-    return f"{GTP_LETTERS[col]}{row + 1}"
+__all__ = ["parse_sgf", "GameInfo", "vertex_to_gtp"]
 
 
 @dataclass

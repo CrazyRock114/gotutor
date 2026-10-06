@@ -27,25 +27,12 @@ RANK_LABELS = {
 
 
 def gtp_to_xy(gtp: str, size: int) -> tuple[int, int] | None:
-    """GTP 顶点 → sgfmill (row, col);pass 返回 None;非法输入抛 ValueError。"""
-    if gtp.lower() == "pass":
-        return None
-    if len(gtp) < 2:
-        raise ValueError(f"非法顶点:{gtp}")
-    col = GTP_LETTERS.find(gtp[0].upper())
-    if col < 0 or col >= size:
-        raise ValueError(f"非法顶点:{gtp}")
-    try:
-        num = int(gtp[1:])
-    except ValueError:
-        raise ValueError(f"非法顶点:{gtp}") from None
-    if not (1 <= num <= size):
-        raise ValueError(f"非法顶点:{gtp}")
-    return size - num, col
+    """GTP 顶点 → [x, y](y=0 顶行);pass 返回 None;非法输入抛 ValueError。"""
+    return gtp_to_vertex(gtp, size)
 
 
-def xy_to_gtp(row: int, col: int) -> str:
-    return f"{GTP_LETTERS[col]}{row + 1}"
+def xy_to_gtp(x: int, y: int) -> str:
+    return vertex_to_gtp(y, x)
 
 
 @dataclass
@@ -150,8 +137,8 @@ class PlaySession:
         for colour, gtp in self.moves:
             sgf_v = ""
             if gtp:
-                row, col = gtp_to_xy(gtp, self.size)
-                sgf_v = f"{chr(ord('a') + col)}{chr(ord('a') + (self.size - 1 - row))}"
+                xy = gtp_to_xy(gtp, self.size)
+                sgf_v = f"{chr(ord('a') + xy[0])}{chr(ord('a') + xy[1])}"
             body.append(f";{colour.upper()}[{sgf_v}]")
         return head + "".join(body) + ")"
 
